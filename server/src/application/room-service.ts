@@ -19,7 +19,11 @@ export class RoomService {
   private rooms = new Map<string, Room>();
 
   createRoom(hostId: string, hostName: string): Room {
-    const room: Room = { id: randomUUID().slice(0, 6).toUpperCase(), hostId, hostName };
+    let id = randomUUID().slice(0, 6).toUpperCase();
+    while (this.rooms.has(id)) {
+      id = randomUUID().slice(0, 6).toUpperCase();
+    }
+    const room: Room = { id, hostId, hostName };
     this.rooms.set(room.id, room);
     return room;
   }

@@ -9,9 +9,11 @@ abstract class GameRepository {
   Stream<GameView> get stateUpdates;
   Stream<String> get errors;
   Stream<void> get waitingForOpponent;
+  Stream<void> get opponentDisconnected;
 
   Future<String> createRoom({required String hostId, required String hostName});
   void joinRoom({required String roomId, required String playerId, required String playerName});
   void sendAction(String roomId, GameAction action);
+  void leaveRoom(String roomId, String playerId);
   void dispose();
 }

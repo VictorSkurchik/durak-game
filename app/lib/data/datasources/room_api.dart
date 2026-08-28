@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 /// Thin wrapper around the room-lifecycle REST endpoints. Realtime gameplay
 /// itself goes over the socket connection (see [SocketGameDataSource]) — REST
 /// is only used for the parts that are naturally request/response: creating
-/// a room and checking whether one exists before joining.
+/// a room.
 class RoomApi {
   final String baseUrl;
   final http.Client _client;
@@ -24,8 +24,5 @@ class RoomApi {
     return json['roomId'] as String;
   }
 
-  Future<bool> roomExists(String roomId) async {
-    final response = await _client.get(Uri.parse('$baseUrl/api/rooms/$roomId'));
-    return response.statusCode == 200;
-  }
+  void dispose() => _client.close();
 }

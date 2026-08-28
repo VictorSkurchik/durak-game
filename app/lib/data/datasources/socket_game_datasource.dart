@@ -14,10 +14,12 @@ class SocketGameDataSource {
   final _stateController = StreamController<GameView>.broadcast();
   final _errorController = StreamController<String>.broadcast();
   final _waitingController = StreamController<void>.broadcast();
+  final _opponentDisconnectedController = StreamController<void>.broadcast();
 
   Stream<GameView> get stateUpdates => _stateController.stream;
   Stream<String> get errors => _errorController.stream;
   Stream<void> get waitingForOpponent => _waitingController.stream;
+  Stream<void> get opponentDisconnected => _opponentDisconnectedController.stream;
 
   SocketGameDataSource({required this.baseUrl}) {
     _socket = socket_io.io(
@@ -25,11 +27,36 @@ class SocketGameDataSource {
       socket_io.OptionBuilder().setTransports(['websocket']).disableAutoConnect().build(),
     );
 
+    // NOTE: on the socket.io client's own auto-reconnect (a new underlying
+    // transport on this same Socket object), room membership is not
+    // automatically re-established server-side. Re-emitting join_room after
+    // a transport reconnect would require this datasource to know the last
+    // room/player identity, which lives in GameController — that coordination
+    // is a known follow-up, intentionally not built here.
     _socket.onConnect((_) {});
-    _socket.on('game_state', (data) => _stateController.add(GameView.fromJson(_asJsonMap(data))));
-    _socket.on('room_error', (data) => _errorController.add(_asJsonMap(data)['message'] as String));
-    _socket.on('action_error', (data) => _errorController.add(_asJsonMap(data)['message'] as String));
+    _socket.on('game_state', (data) {
+      try {
+        _stateController.add(GameView.fromJson(_asJsonMap(data)));
+      } catch (err) {
+        _errorController.add('Received malformed data from server: ${err.toString()}');
+      }
+    });
+    _socket.on('room_error', (data) {
+      try {
+        _errorController.add(_asJsonMap(data)['message'] as String);
+      } catch (err) {
+        _errorController.add('Received malformed data from server: ${err.toString()}');
+      }
+    });
+    _socket.on('action_error', (data) {
+      try {
+        _errorController.add(_asJsonMap(data)['message'] as String);
+      } catch (err) {
+        _errorController.add('Received malformed data from server: ${err.toString()}');
+      }
+    });
     _socket.on('waiting_for_opponent', (_) => _waitingController.add(null));
+    _socket.on('opponent_disconnected', (_) => _opponentDisconnectedController.add(null));
     _socket.connect();
   }
 
@@ -41,10 +68,15 @@ class SocketGameDataSource {
     _socket.emit('game_action', {'roomId': roomId, 'action': action.toJson()});
   }
 
+  void leaveRoom(String roomId, String playerId) {
+    _socket.emit('leave_room', {'roomId': roomId, 'playerId': playerId});
+  }
+
   void dispose() {
     _socket.dispose();
     _stateController.close();
     _errorController.close();
     _waitingController.close();
+    _opponentDisconnectedController.close();
   }
 }

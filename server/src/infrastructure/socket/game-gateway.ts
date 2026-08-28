@@ -21,23 +21,42 @@ interface GameActionPayload {
  */
 class ConnectionRegistry {
   private byRoom = new Map<string, Map<string, string>>();
+  private bySocket = new Map<string, { roomId: string; playerId: string }>();
 
   register(roomId: string, playerId: string, socketId: string): void {
     const players = this.byRoom.get(roomId) ?? new Map();
     players.set(playerId, socketId);
     this.byRoom.set(roomId, players);
+    this.bySocket.set(socketId, { roomId, playerId });
   }
 
   socketsFor(roomId: string): Map<string, string> {
     return this.byRoom.get(roomId) ?? new Map();
   }
 
+  /** Looks up which (roomId, playerId) a given socket is currently registered as. */
+  find(socketId: string): { roomId: string; playerId: string } | undefined {
+    return this.bySocket.get(socketId);
+  }
+
   drop(socketId: string): void {
-    for (const players of this.byRoom.values()) {
-      for (const [playerId, sid] of players) {
-        if (sid === socketId) players.delete(playerId);
-      }
+    const entry = this.bySocket.get(socketId);
+    if (!entry) return;
+    const players = this.byRoom.get(entry.roomId);
+    if (players && players.get(entry.playerId) === socketId) {
+      players.delete(entry.playerId);
     }
+    this.bySocket.delete(socketId);
+  }
+
+  /** Removes a single player's registration from a room, e.g. on explicit leave. */
+  unregister(roomId: string, playerId: string): void {
+    const players = this.byRoom.get(roomId);
+    const socketId = players?.get(playerId);
+    if (socketId !== undefined) {
+      this.bySocket.delete(socketId);
+    }
+    players?.delete(playerId);
   }
 }
 
@@ -51,52 +70,84 @@ export function registerGameGateway(io: Server, roomService: RoomService): void 
   }
 
   io.on("connection", (socket: Socket) => {
-    socket.on("join_room", (payload: JoinRoomPayload) => {
-      const { roomId, playerId, playerName } = payload;
-      const room = roomService.getRoom(roomId);
-      if (!room) {
-        socket.emit("room_error", { message: "Room not found" });
-        return;
-      }
-
-      const isHost = room.hostId === playerId;
-      const isReturningGuest = room.guest?.id === playerId;
-      if (!isHost && !isReturningGuest) {
-        try {
-          roomService.joinRoom(roomId, playerId, playerName);
-        } catch (err) {
-          socket.emit("room_error", { message: (err as Error).message });
+    socket.on("join_room", (payload: any) => {
+      try {
+        const { roomId, playerId, playerName } = (payload ?? {}) as Partial<JoinRoomPayload>;
+        const room = roomService.getRoom(roomId as string);
+        if (!room) {
+          socket.emit("room_error", { message: "Room not found" });
           return;
         }
-      }
 
-      registry.register(roomId, playerId, socket.id);
-      socket.join(roomId);
+        const isHost = room.hostId === playerId;
+        const isReturningGuest = room.guest?.id === playerId;
+        if (!isHost && !isReturningGuest) {
+          try {
+            roomService.joinRoom(roomId as string, playerId as string, playerName as string);
+          } catch (err) {
+            socket.emit("room_error", { message: (err as Error).message });
+            return;
+          }
+        }
 
-      const updated = roomService.getRoom(roomId);
-      if (updated?.game) {
-        broadcastState(roomId, updated.game);
-      } else {
-        socket.emit("waiting_for_opponent", { roomId });
+        registry.register(roomId as string, playerId as string, socket.id);
+        socket.data.playerId = playerId;
+        socket.data.roomId = roomId;
+
+        if (room.game) {
+          broadcastState(roomId as string, room.game);
+        } else {
+          socket.emit("waiting_for_opponent", { roomId });
+        }
+      } catch (err) {
+        socket.emit("room_error", { message: (err as Error).message ?? "Invalid join_room payload" });
       }
     });
 
-    socket.on("game_action", ({ roomId, action }: GameActionPayload) => {
-      let result;
+    socket.on("game_action", (payload: any) => {
       try {
-        result = roomService.applyAction(roomId, action);
+        const { roomId, action } = (payload ?? {}) as Partial<GameActionPayload>;
+
+        if (socket.data.playerId !== action?.playerId) {
+          socket.emit("action_error", { message: "Cannot act as another player" });
+          return;
+        }
+
+        let result;
+        try {
+          result = roomService.applyAction(roomId as string, action as GameAction);
+        } catch (err) {
+          socket.emit("action_error", { message: (err as Error).message });
+          return;
+        }
+        if (!result.ok) {
+          socket.emit("action_error", { message: result.error });
+          return;
+        }
+        broadcastState(roomId as string, result.state);
       } catch (err) {
-        socket.emit("action_error", { message: (err as Error).message });
-        return;
+        socket.emit("action_error", { message: (err as Error).message ?? "Invalid game_action payload" });
       }
-      if (!result.ok) {
-        socket.emit("action_error", { message: result.error });
-        return;
+    });
+
+    socket.on("leave_room", (payload: any) => {
+      try {
+        const { roomId, playerId } = (payload ?? {}) as { roomId?: string; playerId?: string };
+        registry.unregister(roomId as string, playerId as string);
+      } catch {
+        // best-effort cleanup only
       }
-      broadcastState(roomId, result.state);
     });
 
     socket.on("disconnect", () => {
+      const entry = registry.find(socket.id);
+      if (entry) {
+        for (const [, socketId] of registry.socketsFor(entry.roomId)) {
+          if (socketId !== socket.id) {
+            io.to(socketId).emit("opponent_disconnected", {});
+          }
+        }
+      }
       registry.drop(socket.id);
     });
   });

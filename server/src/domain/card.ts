@@ -9,10 +9,6 @@ export interface Card {
   readonly rank: Rank;
 }
 
-export function cardId(card: Card): string {
-  return `${card.rank}-${card.suit}`;
-}
-
 export function cardsEqual(a: Card, b: Card): boolean {
   return a.suit === b.suit && a.rank === b.rank;
 }

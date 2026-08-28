@@ -138,6 +138,14 @@ describe("applyAction TAKE", () => {
     expect(result.state.attackerId).toBe("p1");
     expect(result.state.defenderId).toBe("p2");
   });
+
+  it("rejects taking when the table is already fully defended", () => {
+    const state = fixtureState({
+      table: [{ attack: c("hearts", 6), defense: c("hearts", 10) }],
+    });
+    const result = applyAction(state, { type: "TAKE", playerId: "p2" });
+    expect(result.ok).toBe(false);
+  });
 });
 
 describe("applyAction PASS", () => {

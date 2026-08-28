@@ -12,6 +12,7 @@ export interface GameView {
   you: { id: string; name: string; hand: Card[] };
   opponent: { id: string; name: string; cardCount: number };
   deckCount: number;
+  discardCount: number;
   trumpCard: Card;
   trumpSuit: Card["suit"];
   table: { attack: Card; defense?: Card }[];
@@ -32,6 +33,7 @@ export function toGameView(state: GameState, forPlayerId: string): GameView {
     you: { id: you.id, name: you.name, hand: you.hand },
     opponent: { id: opponent.id, name: opponent.name, cardCount: opponent.hand.length },
     deckCount: state.deck.length,
+    discardCount: state.discardCount,
     trumpCard: state.trumpCard,
     trumpSuit: state.trumpSuit,
     table: state.table,

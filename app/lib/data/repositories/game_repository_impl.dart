@@ -22,6 +22,9 @@ class GameRepositoryImpl implements GameRepository {
   Stream<void> get waitingForOpponent => _socket.waitingForOpponent;
 
   @override
+  Stream<void> get opponentDisconnected => _socket.opponentDisconnected;
+
+  @override
   Future<String> createRoom({required String hostId, required String hostName}) =>
       _roomApi.createRoom(hostId: hostId, hostName: hostName);
 
@@ -31,6 +34,9 @@ class GameRepositoryImpl implements GameRepository {
 
   @override
   void sendAction(String roomId, GameAction action) => _socket.sendAction(roomId, action);
+
+  @override
+  void leaveRoom(String roomId, String playerId) => _socket.leaveRoom(roomId, playerId);
 
   @override
   void dispose() => _socket.dispose();

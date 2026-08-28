@@ -41,6 +41,7 @@ class GameController extends StateNotifier<GameControllerState> {
   late final StreamSubscription _stateSub;
   late final StreamSubscription _errorSub;
   late final StreamSubscription _waitingSub;
+  late final StreamSubscription _opponentDisconnectedSub;
 
   GameController({required GameRepository repository, required this.playerId})
       : _repository = repository,
@@ -54,12 +55,19 @@ class GameController extends StateNotifier<GameControllerState> {
     _waitingSub = _repository.waitingForOpponent.listen((_) {
       state = state.copyWith(status: ConnectionStatus.waitingForOpponent);
     });
+    _opponentDisconnectedSub = _repository.opponentDisconnected.listen((_) {
+      state = state.copyWith(errorMessage: 'Соперник отключился');
+    });
   }
 
   Future<void> createRoom(String playerName) async {
-    final roomId = await _repository.createRoom(hostId: playerId, hostName: playerName);
-    state = state.copyWith(roomId: roomId, clearError: true);
-    _repository.joinRoom(roomId: roomId, playerId: playerId, playerName: playerName);
+    try {
+      final roomId = await _repository.createRoom(hostId: playerId, hostName: playerName);
+      state = state.copyWith(roomId: roomId, clearError: true);
+      _repository.joinRoom(roomId: roomId, playerId: playerId, playerName: playerName);
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Не удалось создать комнату. Проверьте соединение и попробуйте снова.');
+    }
   }
 
   void joinRoom(String roomId, String playerName) {
@@ -76,6 +84,14 @@ class GameController extends StateNotifier<GameControllerState> {
 
   void pass() => _dispatch(PassAction(playerId: playerId));
 
+  void leaveRoom() {
+    final roomId = state.roomId;
+    if (roomId != null) {
+      _repository.leaveRoom(roomId, playerId);
+    }
+    state = const GameControllerState();
+  }
+
   void _dispatch(GameAction action) {
     final roomId = state.roomId;
     if (roomId == null) return;
@@ -87,6 +103,7 @@ class GameController extends StateNotifier<GameControllerState> {
     _stateSub.cancel();
     _errorSub.cancel();
     _waitingSub.cancel();
+    _opponentDisconnectedSub.cancel();
     super.dispose();
   }
 }

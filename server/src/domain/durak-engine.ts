@@ -1,4 +1,4 @@
-import { beats, Card, cardId, cardsEqual, Rank } from "./card.js";
+import { beats, Card, cardsEqual, Rank } from "./card.js";
 import { buildFullDeck, shuffle } from "./deck.js";
 import { GameState, getPlayer, otherPlayerId, PlayerState } from "./game-state.js";
 
@@ -98,7 +98,7 @@ function applyAttack(state: GameState, playerId: string, card: Card): Result {
   if (state.table.length >= MAX_TABLE_SLOTS) {
     return { ok: false, error: "Table is full" };
   }
-  const undefendedCount = state.table.filter((s) => !s.defense).length;
+  const undefendedCount = undefendedSlots(state).length;
   if (defender.hand.length - undefendedCount <= 0) {
     return { ok: false, error: "Defender has no cards left to respond with" };
   }
@@ -147,6 +147,9 @@ function applyTake(state: GameState, playerId: string): Result {
   if (state.table.length === 0) {
     return { ok: false, error: "Nothing to take" };
   }
+  if (undefendedSlots(state).length === 0) {
+    return { ok: false, error: "Nothing to take — the table is already fully defended" };
+  }
 
   const nextState = cloneState(state);
   const defender = getPlayer(nextState, playerId);
@@ -168,7 +171,7 @@ function applyPass(state: GameState, playerId: string): Result {
   if (state.table.length === 0) {
     return { ok: false, error: "No cards on the table yet" };
   }
-  const fullyDefended = state.table.every((slot) => slot.defense);
+  const fullyDefended = undefendedSlots(state).length === 0;
   if (!fullyDefended) {
     return { ok: false, error: "Cannot pass while an attack is still undefended" };
   }
@@ -231,5 +234,3 @@ function cloneState(state: GameState): GameState {
 export function undefendedSlots(state: GameState) {
   return state.table.filter((slot) => !slot.defense);
 }
-
-export { cardId };
