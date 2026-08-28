@@ -273,7 +273,6 @@ class _OpponentBar extends StatelessWidget {
             // the fanned cards below, which otherwise gets hard-clipped by Stack.
             width: 40.0 + (visibleCount - 1).clamp(0, 999) * 18.0 + (extra > 0 ? 28 : 0) + 16,
             child: Stack(
-              clipBehavior: Clip.none,
               children: [
                 for (var i = 0; i < visibleCount; i++)
                   Positioned(

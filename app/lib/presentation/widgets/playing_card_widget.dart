@@ -87,6 +87,10 @@ class FaceDownCardWidget extends StatelessWidget {
       width: width,
       height: height,
       margin: const EdgeInsets.symmetric(horizontal: 3),
+      // The diamond-lattice painter below deliberately draws lines past its
+      // own bounds to tile edge-to-edge, so this needs to clip — otherwise
+      // the last card in a fan (nothing painted over it) bleeds visibly.
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,

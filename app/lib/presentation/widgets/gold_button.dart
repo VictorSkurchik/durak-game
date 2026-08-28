@@ -43,28 +43,39 @@ class GoldPillButton extends StatelessWidget {
     final enabled = onPressed != null;
     return _PressScale(
       onPressed: onPressed,
-      child: Material(
-        color: Colors.transparent,
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: enabled
-                ? const LinearGradient(colors: [DurakColors.goldHighlight, DurakColors.goldCore, DurakColors.goldShadow])
-                : null,
-            color: enabled ? null : DurakColors.goldShadow.withValues(alpha: 0.4),
+      child: Container(
+        // The shadow lives on this unclipped outer box so its blur can bleed
+        // outward past the pill; the gradient fill is clipped separately
+        // below so it can never bleed a square sliver past the rounded
+        // corners (a BoxDecoration painting a gradient + borderRadius
+        // together isn't reliably anti-aliased at the corners on web).
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: enabled
+              ? [BoxShadow(color: DurakColors.goldCore.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4))]
+              : const [],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: ClipRRect(
             borderRadius: BorderRadius.circular(28),
-            boxShadow: enabled
-                ? [BoxShadow(color: DurakColors.goldCore.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4))]
-                : const [],
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(28),
-            onTap: onPressed,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                if (icon != null) Padding(padding: const EdgeInsets.only(right: 8), child: Icon(icon, size: 18, color: DurakColors.feltShadow)),
-                Text(label, style: const TextStyle(color: DurakColors.feltShadow, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-              ]),
+            child: Ink(
+              decoration: BoxDecoration(
+                gradient: enabled
+                    ? const LinearGradient(colors: [DurakColors.goldHighlight, DurakColors.goldCore, DurakColors.goldShadow])
+                    : null,
+                color: enabled ? null : DurakColors.goldShadow.withValues(alpha: 0.4),
+              ),
+              child: InkWell(
+                onTap: onPressed,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (icon != null) Padding(padding: const EdgeInsets.only(right: 8), child: Icon(icon, size: 18, color: DurakColors.feltShadow)),
+                    Text(label, style: const TextStyle(color: DurakColors.feltShadow, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                  ]),
+                ),
+              ),
             ),
           ),
         ),
