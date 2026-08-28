@@ -256,7 +256,7 @@ class _OpponentBar extends StatelessWidget {
     final visibleCount = view.opponent.cardCount.clamp(0, isNarrowLocal ? 4 : 6);
     final extra = view.opponent.cardCount - visibleCount;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(16, 8, 24, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -269,8 +269,11 @@ class _OpponentBar extends StatelessWidget {
           ),
           SizedBox(
             height: 62,
-            width: 40.0 + (visibleCount - 1).clamp(0, 999) * 18.0 + (extra > 0 ? 28 : 0),
+            // +16 buffer absorbs the bounding-box growth from Transform.rotate on
+            // the fanned cards below, which otherwise gets hard-clipped by Stack.
+            width: 40.0 + (visibleCount - 1).clamp(0, 999) * 18.0 + (extra > 0 ? 28 : 0) + 16,
             child: Stack(
+              clipBehavior: Clip.none,
               children: [
                 for (var i = 0; i < visibleCount; i++)
                   Positioned(

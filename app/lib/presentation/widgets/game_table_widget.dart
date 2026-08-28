@@ -20,6 +20,7 @@ class GameTableWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       margin: const EdgeInsets.all(12),
       constraints: const BoxConstraints(minHeight: 200),
       padding: const EdgeInsets.all(16),
@@ -92,6 +93,7 @@ class GameTableWidget extends StatelessWidget {
                           child: Transform.scale(scale: 0.7 + 0.3 * t, child: child),
                         ),
                         child: Stack(
+                          clipBehavior: Clip.none,
                           children: [
                             PlayingCardWidget(card: slot.attack),
                             if (slot.defense != null)
